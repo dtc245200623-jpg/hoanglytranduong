@@ -1,0 +1,51 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "1. Mở Giao Diện Frontend (File HTML)",
+            "type": "chrome",
+            "request": "launch",
+            "file": "${workspaceFolder}/frontend/index.html"
+        },
+        {
+            "name": "2. Mở Frontend Web (Docker Port 3000)",
+            "type": "chrome",
+            "request": "launch",
+            "url": "http://localhost:3000",
+            "webRoot": "${workspaceFolder}/frontend"
+        },
+        {
+            "name": "3. Mở Backend API (Docker Port 5000)",
+            "type": "chrome",
+            "request": "launch",
+            "url": "http://localhost:5000/health",
+            "webRoot": "${workspaceFolder}"
+        },
+        {
+            "name": "Backend API (.NET Core Debug)",
+            "type": "coreclr",
+            "request": "launch",
+            "preLaunchTask": "build",
+            "program": "${workspaceFolder}/backend/src/LibraryManagement.API/bin/Debug/net10.0/LibraryManagement.API.dll",
+            "args": [],
+            "cwd": "${workspaceFolder}/backend/src/LibraryManagement.API",
+            "stopAtEntry": false,
+            "env": {
+                "ASPNETCORE_ENVIRONMENT": "Development"
+            }
+        },
+        {
+            "name": "Backend Worker (.NET Core Debug)",
+            "type": "coreclr",
+            "request": "launch",
+            "preLaunchTask": "build",
+            "program": "${workspaceFolder}/backend/src/LibraryManagement.Worker/bin/Debug/net10.0/LibraryManagement.Worker.dll",
+            "args": [],
+            "cwd": "${workspaceFolder}/backend/src/LibraryManagement.Worker",
+            "stopAtEntry": false,
+            "env": {
+                "DOTNET_ENVIRONMENT": "Development"
+            }
+        }
+    ]
+}

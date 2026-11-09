@@ -2,20 +2,12 @@
 FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
 WORKDIR /app
 
-# Copy solution and project files
-COPY LibraryManagement.slnx ./
-COPY src/LibraryManagement.Shared/LibraryManagement.Shared.csproj src/LibraryManagement.Shared/
-COPY src/LibraryManagement.Infrastructure/LibraryManagement.Infrastructure.csproj src/LibraryManagement.Infrastructure/
-COPY src/LibraryManagement.API/LibraryManagement.API.csproj src/LibraryManagement.API/
-COPY src/LibraryManagement.Worker/LibraryManagement.Worker.csproj src/LibraryManagement.Worker/
+# Copy all files
+COPY . ./
 
-# Restore dependencies
-RUN dotnet restore src/LibraryManagement.API/LibraryManagement.API.csproj
-
-# Copy all sources and build
-COPY src/ src/
+# Publish API
 WORKDIR /app/src/LibraryManagement.API
-RUN dotnet publish -c Release -o /app/publish --no-restore
+RUN dotnet publish -c Release -o /app/publish
 
 # Stage 2: Runtime
 FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS runtime
@@ -26,4 +18,3 @@ ENV ASPNETCORE_URLS=http://+:8080
 EXPOSE 8080
 
 ENTRYPOINT ["dotnet", "LibraryManagement.API.dll"]
-

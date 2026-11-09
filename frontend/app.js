@@ -1,44 +1,254 @@
-// API Base URL config
+// ========================================================
+// HỆ THỐNG THƯ VIỆN & ĐẶT MƯỢN SÁCH PHÂN TÁN (ĐỀ TÀI 20)
+// Frontend Controller: Authentication, RBAC, RabbitMQ Queue Monitor
+// ========================================================
+
+// 1. API Configuration
 let API_BASE_URL = localStorage.getItem('LIBRARY_API_URL') || (
   window.location.port === '3000' || window.location.port === '80' || window.location.port === ''
     ? 'http://localhost:5000'
     : 'http://localhost:5000'
 );
 
+// Global State
+let currentUser = null; // { id, username, fullName, studentCode, role, roleName, token }
 let allBooks = [];
 let allUsers = [];
 let autoRefreshTimer = null;
 let currentSelectedBook = null;
 
-// Initialize when DOM ready
+// ========================================================
+// 2. Lifecycle & Authentication Check
+// ========================================================
 document.addEventListener('DOMContentLoaded', () => {
   const inputUrl = document.getElementById('inputApiUrl');
   if (inputUrl) inputUrl.value = API_BASE_URL;
 
-  // Initialize
+  // Background health check
   checkHealth();
-  loadUsers();
-  loadBooks();
-  loadAllReservations();
-
-  // Auto health check every 10 seconds
   setInterval(checkHealth, 10000);
 
-  // Auto refresh reservations every 3 seconds
-  startAutoRefresh();
-
-  // Listen to user dropdown changes
-  const userSelect = document.getElementById('currentUserSelect');
-  if (userSelect) {
-    userSelect.addEventListener('change', () => {
-      const activeTab = document.querySelector('.nav-link.active');
-      if (activeTab && activeTab.id === 'tab-userhistory-link') {
-        loadUserReservations();
-      }
-    });
+  // Check saved authentication session
+  const savedUserJson = localStorage.getItem('AUTH_USER');
+  if (savedUserJson) {
+    try {
+      currentUser = JSON.parse(savedUserJson);
+      initAuthenticatedState();
+    } catch (e) {
+      localStorage.removeItem('AUTH_USER');
+      showLoginView();
+    }
+  } else {
+    showLoginView();
   }
 });
 
+function showLoginView() {
+  document.getElementById('loginView').style.display = 'flex';
+  document.getElementById('appView').style.display = 'none';
+  if (autoRefreshTimer) {
+    clearInterval(autoRefreshTimer);
+    autoRefreshTimer = null;
+  }
+}
+
+function initAuthenticatedState() {
+  document.getElementById('loginView').style.display = 'none';
+  document.getElementById('appView').style.display = 'block';
+
+  // Apply Role-Based Access Control
+  applyRolePermissions(currentUser);
+
+  // Load Initial Data
+  loadUsers();
+  loadBooks();
+  loadAllReservations();
+  startAutoRefresh();
+}
+
+// ========================================================
+// 3. Login & Logout Handlers
+// ========================================================
+async function handleLogin(e) {
+  if (e) e.preventDefault();
+  const username = document.getElementById('loginUsername')?.value.trim();
+  const password = document.getElementById('loginPassword')?.value.trim();
+
+  if (!username || !password) {
+    Swal.fire('Chú ý', 'Vui lòng nhập đầy đủ tên đăng nhập và mật khẩu.', 'warning');
+    return;
+  }
+
+  await executeLogin(username, password);
+}
+
+function quickLogin(username, password) {
+  const uInput = document.getElementById('loginUsername');
+  const pInput = document.getElementById('loginPassword');
+  if (uInput) uInput.value = username;
+  if (pInput) pInput.value = password;
+  executeLogin(username, password);
+}
+
+async function executeLogin(username, password) {
+  const submitBtn = document.getElementById('btnLoginSubmit');
+  if (submitBtn) {
+    submitBtn.disabled = true;
+    submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span> Đang xác thực...';
+  }
+
+  try {
+    const res = await fetch(`${API_BASE_URL}/auth/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username, password })
+    });
+
+    if (!res.ok) {
+      const errData = await res.json().catch(() => ({}));
+      throw new Error(errData.message || 'Tên đăng nhập hoặc mật khẩu không chính xác.');
+    }
+
+    const data = await res.json();
+    currentUser = {
+      ...data.user,
+      token: data.token
+    };
+
+    localStorage.setItem('AUTH_USER', JSON.stringify(currentUser));
+
+    Swal.fire({
+      icon: 'success',
+      title: 'Đăng nhập thành công!',
+      html: `
+        <div class="text-center">
+          <p class="mb-1">Chào mừng <b>${currentUser.fullName}</b></p>
+          <span class="badge ${currentUser.role === 1 ? 'bg-warning text-dark' : 'bg-success'} px-3 py-1">
+            Vai trò: ${currentUser.role === 1 ? 'Thủ thư (Quản lý)' : 'Sinh viên (Độc giả)'}
+          </span>
+        </div>
+      `,
+      timer: 1800,
+      showConfirmButton: false
+    });
+
+    initAuthenticatedState();
+  } catch (err) {
+    Swal.fire('Đăng nhập thất bại', err.message || 'Không thể kết nối đến máy chủ xác thực.', 'error');
+  } finally {
+    if (submitBtn) {
+      submitBtn.disabled = false;
+      submitBtn.innerHTML = '<i class="fa-solid fa-right-to-bracket me-2"></i> Đăng nhập vào hệ thống';
+    }
+  }
+}
+
+function handleLogout() {
+  Swal.fire({
+    title: 'Xác nhận đăng xuất?',
+    text: 'Bạn sẽ quay trở lại màn hình đăng nhập vai trò.',
+    icon: 'question',
+    showCancelButton: true,
+    confirmButtonText: 'Đăng xuất',
+    cancelButtonText: 'Ở lại'
+  }).then((result) => {
+    if (result.isConfirmed) {
+      localStorage.removeItem('AUTH_USER');
+      currentUser = null;
+      showLoginView();
+      // Reset active tab to books
+      const firstTab = document.getElementById('tab-books-link');
+      if (firstTab && window.bootstrap) {
+        new bootstrap.Tab(firstTab).show();
+      }
+    }
+  });
+}
+
+// ========================================================
+// 4. Role-Based Access Control (RBAC)
+// ========================================================
+function applyRolePermissions(user) {
+  if (!user) return;
+
+  const isLibrarian = (user.role === 1 || user.role === 'Librarian');
+
+  // 1. Update Navigation Bar Info
+  const navUserName = document.getElementById('navUserName');
+  const navUserRoleBadge = document.getElementById('navUserRoleBadge');
+  const navUserCode = document.getElementById('navUserCode');
+  const userAvatarIcon = document.getElementById('userAvatarIcon');
+
+  if (navUserName) navUserName.textContent = user.fullName;
+  if (navUserCode) navUserCode.textContent = `[${user.studentCode || user.username}]`;
+
+  if (navUserRoleBadge) {
+    if (isLibrarian) {
+      navUserRoleBadge.className = 'role-badge-pill role-badge-librarian';
+      navUserRoleBadge.innerHTML = '<i class="fa-solid fa-user-shield me-1"></i>Thủ Thư';
+      if (userAvatarIcon) userAvatarIcon.className = 'fa-solid fa-user-tie text-warning';
+    } else {
+      navUserRoleBadge.className = 'role-badge-pill role-badge-student';
+      navUserRoleBadge.innerHTML = '<i class="fa-solid fa-graduation-cap me-1"></i>Sinh Viên';
+      if (userAvatarIcon) userAvatarIcon.className = 'fa-solid fa-graduation-cap text-success';
+    }
+  }
+
+  // 2. Update Role Notice Banner
+  const roleNoticeBanner = document.getElementById('roleNoticeBanner');
+  const roleNoticeIcon = document.getElementById('roleNoticeIcon');
+  const roleNoticeTitle = document.getElementById('roleNoticeTitle');
+  const roleNoticeDesc = document.getElementById('roleNoticeDesc');
+
+  if (isLibrarian) {
+    if (roleNoticeBanner) roleNoticeBanner.className = 'alert shadow-sm rounded-4 p-3 mb-4 d-flex flex-wrap align-items-center justify-content-between gap-3 border-warning bg-warning bg-opacity-10';
+    if (roleNoticeIcon) {
+      roleNoticeIcon.className = 'p-3 rounded-circle text-white bg-warning';
+      roleNoticeIcon.innerHTML = '<i class="fa-solid fa-user-shield fa-lg"></i>';
+    }
+    if (roleNoticeTitle) roleNoticeTitle.innerHTML = `<span class="text-warning-emphasis">Tài khoản Quản lý: THỦ THƯ (${user.fullName})</span>`;
+    if (roleNoticeDesc) roleNoticeDesc.innerHTML = 'Toàn quyền nghiệp vụ: Xác nhận giao sách (<b>Borrowed</b>), thu hồi trả hoàn kho (<b>Returned</b>), giám sát toàn bộ hàng đợi RabbitMQ và lịch sử độc giả.';
+  } else {
+    if (roleNoticeBanner) roleNoticeBanner.className = 'alert shadow-sm rounded-4 p-3 mb-4 d-flex flex-wrap align-items-center justify-content-between gap-3 border-success bg-success bg-opacity-10';
+    if (roleNoticeIcon) {
+      roleNoticeIcon.className = 'p-3 rounded-circle text-white bg-success';
+      roleNoticeIcon.innerHTML = '<i class="fa-solid fa-graduation-cap fa-lg"></i>';
+    }
+    if (roleNoticeTitle) roleNoticeTitle.innerHTML = `<span class="text-success-emphasis">Tài khoản Độc giả: SINH VIÊN (${user.fullName} - MSSV: ${user.studentCode})</span>`;
+    if (roleNoticeDesc) roleNoticeDesc.innerHTML = 'Quyền độc giả: Tra cứu danh mục sách, gửi yêu cầu đặt mượn sách qua hàng đợi RabbitMQ, theo dõi trạng thái xử lý và xem lịch sử cá nhân.';
+  }
+
+  // 3. Tab Visibility (Nghiệp vụ thủ thư)
+  const tabLibrarianItem = document.getElementById('tab-librarian-item');
+  if (tabLibrarianItem) {
+    tabLibrarianItem.style.display = isLibrarian ? 'block' : 'none';
+  }
+
+  // If student was on librarian tab, switch back
+  if (!isLibrarian) {
+    const activeTab = document.querySelector('.nav-link.active');
+    if (activeTab && activeTab.id === 'tab-librarian-link') {
+      const booksTab = document.getElementById('tab-books-link');
+      if (booksTab && window.bootstrap) {
+        new bootstrap.Tab(booksTab).show();
+      }
+    }
+  }
+
+  // 4. User History Controls
+  const librarianUserSelectContainer = document.getElementById('librarianUserSelectContainer');
+  const userHistorySubtitle = document.getElementById('userHistorySubtitle');
+  if (librarianUserSelectContainer) {
+    librarianUserSelectContainer.style.display = isLibrarian ? 'block' : 'none';
+  }
+  if (userHistorySubtitle) {
+    userHistorySubtitle.innerHTML = isLibrarian
+      ? 'Tra cứu và kiểm soát lịch sử mượn sách của bất kỳ sinh viên nào trong thư viện.'
+      : `Lịch sử các đơn đặt mượn và tài liệu mượn của bạn (<b>${user.fullName}</b>).`;
+  }
+}
+
+// Save API URL configuration
 function saveApiUrl() {
   const url = document.getElementById('inputApiUrl').value.trim();
   if (url) {
@@ -53,7 +263,9 @@ function saveApiUrl() {
   }
 }
 
-// 1. Health Check
+// ========================================================
+// 5. System Health Check
+// ========================================================
 async function checkHealth() {
   try {
     const res = await fetch(`${API_BASE_URL}/health`);
@@ -83,19 +295,26 @@ function updateStatusBadge(type, isOk, text) {
   }
 }
 
-// 2. Load Users
+// ========================================================
+// 6. Users Catalog
+// ========================================================
 async function loadUsers() {
   try {
     const res = await fetch(`${API_BASE_URL}/users`);
     if (res.ok) {
       allUsers = await res.json();
-      const userSelect = document.getElementById('currentUserSelect');
-      if (userSelect) {
-        userSelect.innerHTML = allUsers.map((u, idx) => `
-          <option value="${u.id}" ${idx === 0 ? 'selected' : ''}>
-            ${u.fullName} (${u.studentCode})
-          </option>
-        `).join('');
+
+      // Populate filter in Tab 4 for Librarian
+      const filterSelect = document.getElementById('userHistoryFilterSelect');
+      if (filterSelect) {
+        filterSelect.innerHTML = '<option value="">-- Chọn sinh viên để xem lịch sử --</option>' +
+          allUsers.filter(u => u.role === 0 || u.role === 'Student').map(u => `
+            <option value="${u.id}">${u.fullName} (${u.studentCode})</option>
+          `).join('');
+
+        if (currentUser && currentUser.role === 1 && filterSelect.options.length > 1) {
+          filterSelect.selectedIndex = 1;
+        }
       }
     }
   } catch (err) {
@@ -103,14 +322,18 @@ async function loadUsers() {
   }
 }
 
-function getCurrentUserId() {
-  const sel = document.getElementById('currentUserSelect');
-  return sel && sel.value ? parseInt(sel.value) : 1;
+function getEffectiveReservationUserId() {
+  if (!currentUser) return 1;
+  // If Librarian, can borrow as test reader or default user
+  return currentUser.id;
 }
 
-// 3. Load Books
+// ========================================================
+// 7. Books Catalog & Details
+// ========================================================
 async function loadBooks() {
   const grid = document.getElementById('booksGrid');
+  if (!grid) return;
   grid.innerHTML = `
     <div class="col-12 text-center py-5">
       <div class="spinner-border text-primary" role="status"></div>
@@ -154,7 +377,6 @@ function populateCategories() {
 function populateStressBookSelect() {
   const select = document.getElementById('stressBookSelect');
   if (!select) return;
-  // Sắp xếp các cuốn còn 1 bản lên trước
   const sorted = [...allBooks].sort((a, b) => a.availableCopies - b.availableCopies);
   select.innerHTML = sorted.map(b => `
     <option value="${b.id}" ${b.availableCopies === 1 ? 'selected' : ''}>
@@ -165,6 +387,7 @@ function populateStressBookSelect() {
 
 function renderBooks(books) {
   const grid = document.getElementById('booksGrid');
+  if (!grid) return;
   if (!books || books.length === 0) {
     grid.innerHTML = '<div class="col-12 text-center py-5 text-muted">Không tìm thấy cuốn sách nào phù hợp.</div>';
     return;
@@ -231,7 +454,6 @@ function filterBooks() {
   renderBooks(filtered);
 }
 
-// 4. Book Details Modal
 function viewBookDetail(bookId) {
   const book = allBooks.find(b => b.id === bookId);
   if (!book) return;
@@ -285,17 +507,24 @@ function reserveFromDetail() {
   }
 }
 
-// 5. Submit Reservation (POST /reservations) -> Pushed to RabbitMQ
+// ========================================================
+// 8. Place Reservation (POST /reservations -> RabbitMQ)
+// ========================================================
 async function requestReservation(bookId) {
-  const userId = getCurrentUserId();
-  const user = allUsers.find(u => u.id === userId);
+  if (!currentUser) {
+    Swal.fire('Chưa đăng nhập', 'Vui lòng đăng nhập để đặt mượn sách.', 'warning');
+    return;
+  }
+
+  const userId = currentUser.id;
   const book = allBooks.find(b => b.id === bookId);
 
   const confirmResult = await Swal.fire({
     title: 'Xác nhận đặt mượn sách',
     html: `
       <div class="text-start small">
-        <p class="mb-1"><b>Độc giả:</b> ${user ? `${user.fullName} (${user.studentCode})` : `User #${userId}`}</p>
+        <p class="mb-1"><b>Người yêu cầu:</b> ${currentUser.fullName} (${currentUser.studentCode || currentUser.username})</p>
+        <p class="mb-1"><b>Vai trò:</b> <span class="badge ${currentUser.role === 1 ? 'bg-warning text-dark' : 'bg-success'}">${currentUser.role === 1 ? 'Thủ thư' : 'Sinh viên'}</span></p>
         <p class="mb-1"><b>Tài liệu:</b> ${book ? book.title : `Book #${bookId}`}</p>
         <p class="mb-0 text-muted">Yêu cầu sẽ được đưa vào <b>RabbitMQ Broker</b> để Worker kiểm tra số bản khả dụng và xử lý bất đồng bộ.</p>
       </div>
@@ -329,7 +558,6 @@ async function requestReservation(bookId) {
 
     const createdReservation = await res.json();
 
-    // Show processing animation
     Swal.fire({
       title: 'Đã đưa vào RabbitMQ!',
       html: `
@@ -344,7 +572,6 @@ async function requestReservation(bookId) {
       showConfirmButton: false
     });
 
-    // Switch to tab reservations to see result
     loadAllReservations();
     loadBooks();
   } catch (err) {
@@ -352,9 +579,15 @@ async function requestReservation(bookId) {
   }
 }
 
-// 6. Load Live Reservations Queue
+// ========================================================
+// 9. Reservations Queue Monitoring & Action Buttons
+// ========================================================
 async function loadAllReservations() {
   const tbody = document.getElementById('reservationsTableBody');
+  if (!tbody) return;
+
+  const isLibrarian = currentUser && (currentUser.role === 1 || currentUser.role === 'Librarian');
+
   try {
     const res = await fetch(`${API_BASE_URL}/reservations`);
     if (!res.ok) return;
@@ -381,18 +614,27 @@ async function loadAllReservations() {
       const formattedDate = new Date(item.createdAt).toLocaleString('vi-VN');
 
       let actionHtml = '-';
-      if (item.status === 1) { // Reserved
-        actionHtml = `
-          <button class="btn btn-sm btn-outline-success py-0 px-2" onclick="confirmBorrow(${item.id})">
-            <i class="fa-solid fa-hand-holding me-1"></i> Giao sách
-          </button>
-        `;
-      } else if (item.status === 3) { // Borrowed
-        actionHtml = `
-          <button class="btn btn-sm btn-outline-primary py-0 px-2" onclick="confirmReturn(${item.id})">
-            <i class="fa-solid fa-rotate-left me-1"></i> Trả sách
-          </button>
-        `;
+      if (isLibrarian) {
+        if (item.status === 1) { // Reserved
+          actionHtml = `
+            <button class="btn btn-sm btn-outline-success py-0 px-2 fw-medium" onclick="confirmBorrow(${item.id})">
+              <i class="fa-solid fa-hand-holding me-1"></i> Giao sách
+            </button>
+          `;
+        } else if (item.status === 3) { // Borrowed
+          actionHtml = `
+            <button class="btn btn-sm btn-outline-primary py-0 px-2 fw-medium" onclick="confirmReturn(${item.id})">
+              <i class="fa-solid fa-rotate-left me-1"></i> Trả sách
+            </button>
+          `;
+        }
+      } else {
+        // For Students, actions are disabled with badge
+        if (item.status === 1) {
+          actionHtml = `<span class="badge bg-light text-secondary border">Chờ nhận tại quầy</span>`;
+        } else if (item.status === 3) {
+          actionHtml = `<span class="badge bg-light text-primary border">Đang giữ sách</span>`;
+        }
       }
 
       return `
@@ -433,7 +675,6 @@ function renderStatusBadge(status, text) {
   `;
 }
 
-// 7. Auto refresh
 function startAutoRefresh() {
   if (autoRefreshTimer) clearInterval(autoRefreshTimer);
   autoRefreshTimer = setInterval(() => {
@@ -453,8 +694,14 @@ function toggleAutoRefresh() {
   }
 }
 
-// 8. Librarian Operations (Fulfillment)
+// ========================================================
+// 10. Librarian Operations (Fulfillment)
+// ========================================================
 async function loadLibrarianTasks() {
+  if (!currentUser || (currentUser.role !== 1 && currentUser.role !== 'Librarian')) {
+    return;
+  }
+
   try {
     const res = await fetch(`${API_BASE_URL}/reservations`);
     if (!res.ok) return;
@@ -538,14 +785,27 @@ async function confirmReturn(reservationId) {
   }
 }
 
-// 9. Load User History
+// ========================================================
+// 11. User Borrowing History (RBAC filtered)
+// ========================================================
 async function loadUserReservations() {
-  const userId = getCurrentUserId();
+  if (!currentUser) return;
+
+  const isLibrarian = (currentUser.role === 1 || currentUser.role === 'Librarian');
+  let targetUserId = currentUser.id;
+
+  if (isLibrarian) {
+    const select = document.getElementById('userHistoryFilterSelect');
+    if (select && select.value) {
+      targetUserId = parseInt(select.value);
+    }
+  }
+
   const tbody = document.getElementById('userReservationsTableBody');
   tbody.innerHTML = '<tr><td colspan="6" class="text-center py-4 text-muted">Đang tải lịch sử của độc giả...</td></tr>';
 
   try {
-    const res = await fetch(`${API_BASE_URL}/users/${userId}/reservations`);
+    const res = await fetch(`${API_BASE_URL}/users/${targetUserId}/reservations`);
     if (!res.ok) throw new Error('Không thể tải lịch sử người dùng');
     const list = await res.json();
 
@@ -573,7 +833,9 @@ async function loadUserReservations() {
   }
 }
 
-// 10. Concurrency Stress Test Demo
+// ========================================================
+// 12. Concurrency Race Condition Demo
+// ========================================================
 async function triggerStressTest() {
   const bookSelect = document.getElementById('stressBookSelect');
   const bookId = parseInt(bookSelect?.value);
@@ -582,7 +844,6 @@ async function triggerStressTest() {
     return;
   }
 
-  const book = allBooks.find(b => b.id === bookId);
   const container = document.getElementById('stressResultsContainer');
   const btnRun = document.getElementById('btnStressRun');
 
@@ -591,8 +852,10 @@ async function triggerStressTest() {
     return;
   }
 
-  const userA = allUsers[0];
-  const userB = allUsers[1];
+  // Pick 2 student users
+  const students = allUsers.filter(u => u.role === 0 || u.role === 'Student');
+  const userA = students[0] || allUsers[0];
+  const userB = students[1] || allUsers[1];
 
   btnRun.disabled = true;
   btnRun.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span> Đang gửi 2 Request Song Song...';
@@ -605,7 +868,6 @@ async function triggerStressTest() {
   `;
 
   try {
-    // Bắn 2 request song song cùng một thời điểm bằng Promise.all
     const [resA, resB] = await Promise.all([
       fetch(`${API_BASE_URL}/reservations`, {
         method: 'POST',
@@ -645,7 +907,6 @@ async function triggerStressTest() {
       </div>
     `;
 
-    // Polling kết quả của 2 đơn hàng này sau khi Worker xử lý
     let attempts = 0;
     const pollInterval = setInterval(async () => {
       attempts++;
@@ -655,14 +916,14 @@ async function triggerStressTest() {
           fetch(`${API_BASE_URL}/reservations/${dataB.id}`).then(r => r.json())
         ]);
 
-        if (pollA.status !== 0) { // Not Pending
+        if (pollA.status !== 0) {
           document.getElementById('stressStatusA').innerHTML = `
             ${renderStatusBadge(pollA.status, pollA.statusText)}
             <div class="small text-secondary mt-2">${pollA.notes}</div>
           `;
         }
 
-        if (pollB.status !== 0) { // Not Pending
+        if (pollB.status !== 0) {
           document.getElementById('stressStatusB').innerHTML = `
             ${renderStatusBadge(pollB.status, pollB.statusText)}
             <div class="small text-secondary mt-2">${pollB.notes}</div>
@@ -687,4 +948,3 @@ async function triggerStressTest() {
     container.innerHTML = `<div class="col-12 text-danger text-center py-3">Lỗi khi thực hiện stress test: ${err.message}</div>`;
   }
 }
-

@@ -9,27 +9,92 @@ public static class DatabaseSeeder
 {
     public static async Task SeedAsync(LibraryDbContext context, ILogger logger)
     {
+        const int maxRetries = 10;
+        for (var retry = 1; retry <= maxRetries; retry++)
+        {
+            try
+            {
+                // Tự động tạo bảng nếu chưa có (EnsureCreated hoặc Migrate)
+                await context.Database.EnsureCreatedAsync();
+                break;
+            }
+            catch (Exception ex)
+            {
+                logger.LogWarning(ex, "Database is not ready yet (attempt {Attempt}/{MaxRetries}). Retrying in 3s...", retry, maxRetries);
+                if (retry == maxRetries) throw;
+                await Task.Delay(3000);
+            }
+        }
+
         try
         {
-            // Tự động tạo bảng nếu chưa có (EnsureCreated hoặc Migrate)
-            await context.Database.EnsureCreatedAsync();
+            // Tự động bổ sung cột nếu bảng đã tồn tại từ trước
+            try
+            {
+                await context.Database.ExecuteSqlRawAsync(@"
+                    ALTER TABLE ""Users"" ADD COLUMN IF NOT EXISTS ""Username"" VARCHAR(50) DEFAULT 'user';
+                    ALTER TABLE ""Users"" ADD COLUMN IF NOT EXISTS ""Password"" VARCHAR(100) DEFAULT '123';
+                    ALTER TABLE ""Users"" ADD COLUMN IF NOT EXISTS ""Role"" INTEGER DEFAULT 0;
+                ");
+            }
+            catch { }
+
+            // Đảm bảo luôn có tài khoản Thủ thư và Sinh viên
+            var librarian = await context.Users.FirstOrDefaultAsync(u => u.Username == "thuthu");
+            if (librarian == null)
+            {
+                context.Users.Add(new User
+                {
+                    Username = "thuthu",
+                    Password = "123",
+                    FullName = "Cô Trần Mai Lan (Thủ thư trưởng)",
+                    Email = "thuthu@ptit.edu.vn",
+                    StudentCode = "NV001",
+                    PhoneNumber = "0988776655",
+                    Role = UserRole.Librarian
+                });
+                await context.SaveChangesAsync();
+            }
 
             if (await context.Books.AnyAsync())
             {
-                logger.LogInformation("Database already contains data. Skipping seeding.");
+                // Cập nhật lại thông tin đăng nhập cho các user cũ nếu thiếu
+                var existingUsers = await context.Users.ToListAsync();
+                var studentUsers = new Dictionary<string, (string username, string studentCode)>
+                {
+                    { "Nguyễn Văn An", ("sv_an", "B21DCCN001") },
+                    { "Trần Thị Bình", ("sv_binh", "B21DCCN002") },
+                    { "Lê Hoàng Cường", ("sv_cuong", "B21DCCN003") },
+                    { "Phạm Minh Đức", ("sv_duc", "B21DCCN004") },
+                    { "Đỗ Thu Hà", ("sv_ha", "B21DCCN005") }
+                };
+
+                foreach (var user in existingUsers)
+                {
+                    if (studentUsers.TryGetValue(user.FullName, out var info))
+                    {
+                        user.Username = info.username;
+                        user.Password = "123";
+                        user.Role = UserRole.Student;
+                    }
+                }
+                await context.SaveChangesAsync();
+
+                logger.LogInformation("Database already contains data. User accounts updated.");
                 return;
             }
 
             logger.LogInformation("Seeding initial library data...");
 
-            // 1. Tạo Users mẫu
+            // 1. Tạo Users mẫu kèm tài khoản phân quyền
             var users = new List<User>
             {
-                new() { FullName = "Nguyễn Văn An", Email = "an.nv@ptit.edu.vn", StudentCode = "B21DCCN001", PhoneNumber = "0912345671" },
-                new() { FullName = "Trần Thị Bình", Email = "binh.tt@ptit.edu.vn", StudentCode = "B21DCCN002", PhoneNumber = "0912345672" },
-                new() { FullName = "Lê Hoàng Cường", Email = "cuong.lh@ptit.edu.vn", StudentCode = "B21DCCN003", PhoneNumber = "0912345673" },
-                new() { FullName = "Phạm Minh Đức", Email = "duc.pm@ptit.edu.vn", StudentCode = "B21DCCN004", PhoneNumber = "0912345674" },
-                new() { FullName = "Đỗ Thu Hà", Email = "ha.dt@ptit.edu.vn", StudentCode = "B21DCCN005", PhoneNumber = "0912345675" }
+                new() { Username = "thuthu", Password = "123", FullName = "Cô Trần Mai Lan (Thủ thư trưởng)", Email = "thuthu@ptit.edu.vn", StudentCode = "NV001", PhoneNumber = "0988776655", Role = UserRole.Librarian },
+                new() { Username = "sv_an", Password = "123", FullName = "Nguyễn Văn An", Email = "an.nv@ptit.edu.vn", StudentCode = "B21DCCN001", PhoneNumber = "0912345671", Role = UserRole.Student },
+                new() { Username = "sv_binh", Password = "123", FullName = "Trần Thị Bình", Email = "binh.tt@ptit.edu.vn", StudentCode = "B21DCCN002", PhoneNumber = "0912345672", Role = UserRole.Student },
+                new() { Username = "sv_cuong", Password = "123", FullName = "Lê Hoàng Cường", Email = "cuong.lh@ptit.edu.vn", StudentCode = "B21DCCN003", PhoneNumber = "0912345673", Role = UserRole.Student },
+                new() { Username = "sv_duc", Password = "123", FullName = "Phạm Minh Đức", Email = "duc.pm@ptit.edu.vn", StudentCode = "B21DCCN004", PhoneNumber = "0912345674", Role = UserRole.Student },
+                new() { Username = "sv_ha", Password = "123", FullName = "Đỗ Thu Hà", Email = "ha.dt@ptit.edu.vn", StudentCode = "B21DCCN005", PhoneNumber = "0912345675", Role = UserRole.Student }
             };
             await context.Users.AddRangeAsync(users);
             await context.SaveChangesAsync();

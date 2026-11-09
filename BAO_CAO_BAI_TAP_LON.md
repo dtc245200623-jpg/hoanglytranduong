@@ -214,3 +214,4 @@ Tất cả container liên kết trong mạng nội bộ `library_network` và p
 
 ### 5.2. Kết luận
 Đề tài đã hoàn thành xuất sắc toàn bộ các yêu cầu bắt buộc và mở rộng của học phần Phát triển ứng dụng phân tán, cung cấp một hệ thống thư viện hoàn chỉnh, có khả năng vận hành thực tế và dễ dàng trình diễn trực quan khi báo cáo bảo vệ.
+

@@ -179,6 +179,50 @@ app.MapGet("/books/{id:int}", async (int id, LibraryDbContext db) =>
 .WithName("GetBookById")
 .WithTags("Books");
 
+// ==========================================
+// AUTHENTICATION & USERS
+// ==========================================
+
+// POST /auth/login - Đăng nhập phân quyền (Thủ thư / Sinh viên)
+app.MapPost("/auth/login", async (LoginRequest req, LibraryDbContext db, ILogger<Program> logger) =>
+{
+    if (string.IsNullOrWhiteSpace(req.Username) || string.IsNullOrWhiteSpace(req.Password))
+    {
+        return Results.BadRequest(new LoginResponse { Success = false, Message = "Vui lòng nhập tên đăng nhập và mật khẩu." });
+    }
+
+    var user = await db.Users.FirstOrDefaultAsync(u => u.Username.ToLower() == req.Username.Trim().ToLower());
+    if (user == null || user.Password != req.Password.Trim())
+    {
+        logger.LogWarning("--> [Auth] Failed login attempt for username: {Username}", req.Username);
+        return Results.BadRequest(new LoginResponse { Success = false, Message = "Tên đăng nhập hoặc mật khẩu không chính xác!" });
+    }
+
+    var userDto = new UserDto
+    {
+        Id = user.Id,
+        Username = user.Username,
+        FullName = user.FullName,
+        Email = user.Email,
+        StudentCode = user.StudentCode,
+        PhoneNumber = user.PhoneNumber,
+        Role = user.Role
+    };
+
+    var token = $"auth_token_{user.Id}_{user.Role}_{Guid.NewGuid():N}";
+    logger.LogInformation("--> [Auth] User {Username} logged in successfully with Role: {Role}", user.Username, user.Role);
+
+    return Results.Ok(new LoginResponse
+    {
+        Success = true,
+        Message = $"Đăng nhập thành công! Chào mừng {user.FullName}",
+        Token = token,
+        User = userDto
+    });
+})
+.WithName("Login")
+.WithTags("Auth");
+
 // GET /users - Lấy danh sách bạn đọc (hỗ trợ chọn người mượn ở UI)
 app.MapGet("/users", async (LibraryDbContext db) =>
 {
@@ -187,10 +231,12 @@ app.MapGet("/users", async (LibraryDbContext db) =>
         .Select(u => new UserDto
         {
             Id = u.Id,
+            Username = u.Username,
             FullName = u.FullName,
             Email = u.Email,
             StudentCode = u.StudentCode,
-            PhoneNumber = u.PhoneNumber
+            PhoneNumber = u.PhoneNumber,
+            Role = u.Role
         })
         .ToListAsync();
 

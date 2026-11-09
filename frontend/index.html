@@ -21,309 +21,407 @@
 </head>
 <body>
 
-  <!-- Top Navigation Bar -->
-  <nav class="navbar navbar-expand-lg navbar-dark navbar-custom sticky-top py-3">
-    <div class="container-fluid px-4">
-      <a class="navbar-brand d-flex align-items-center gap-2 fw-bold text-white fs-5" href="#">
-        <i class="fa-solid fa-book-bookmark text-warning"></i>
-        <span>HỆ THỐNG THƯ VIỆN PHÂN TÁN</span>
-        <span class="badge bg-warning text-dark ms-2 fw-semibold">Đề tài 20</span>
-      </a>
+  <!-- ======================================================== -->
+  <!-- 1. GIAO DIỆN ĐĂNG NHẬP & PHÂN QUYỀN (LOGIN VIEW) -->
+  <!-- ======================================================== -->
+  <div id="loginView" class="login-wrapper">
+    <div class="login-card">
+      <div class="login-header-banner">
+        <i class="fa-solid fa-book-bookmark"></i>
+        <h4 class="fw-bold mb-1">HỆ THỐNG THƯ VIỆN PHÂN TÁN</h4>
+        <span class="badge bg-warning text-dark px-3 py-1 fw-bold rounded-pill">Đề tài 20 - PTUDPT</span>
+        <p class="text-white-50 small mb-0 mt-2">Đăng nhập để xác thực và phân quyền chức vụ</p>
+      </div>
 
-      <!-- Right Side: System Status & User Selection -->
-      <div class="d-flex align-items-center gap-3 ms-auto">
-        <!-- Health Status Pills -->
-        <div class="d-none d-md-flex align-items-center gap-2">
-          <div class="system-badge bg-dark text-white border border-secondary" id="badge-api">
-            <span class="status-dot offline" id="dot-api"></span>
-            <span>API: <b id="text-api">Đang kiểm tra...</b></span>
+      <div class="p-4">
+        <!-- Form đăng nhập -->
+        <form id="loginForm" onsubmit="handleLogin(event)">
+          <div class="mb-3">
+            <label class="form-label fw-semibold text-secondary small">Tên đăng nhập (Username):</label>
+            <div class="input-group">
+              <span class="input-group-text bg-light text-muted border-end-0"><i class="fa-solid fa-user"></i></span>
+              <input type="text" class="form-control border-start-0" id="loginUsername" placeholder="Nhập username..." required>
+            </div>
           </div>
-          <div class="system-badge bg-dark text-white border border-secondary" id="badge-db">
-            <span class="status-dot offline" id="dot-db"></span>
-            <span>Database: <b id="text-db">Đang kiểm tra...</b></span>
+
+          <div class="mb-4">
+            <label class="form-label fw-semibold text-secondary small">Mật khẩu (Password):</label>
+            <div class="input-group">
+              <span class="input-group-text bg-light text-muted border-end-0"><i class="fa-solid fa-lock"></i></span>
+              <input type="password" class="form-control border-start-0" id="loginPassword" placeholder="Nhập mật khẩu..." required>
+            </div>
           </div>
-          <div class="system-badge bg-dark text-white border border-secondary" id="badge-rabbit">
-            <span class="status-dot offline" id="dot-rabbit"></span>
-            <span>RabbitMQ: <b id="text-rabbit">Đang kiểm tra...</b></span>
-          </div>
+
+          <button type="submit" class="btn btn-primary w-100 py-2 fw-bold shadow-sm" id="btnLoginSubmit">
+            <i class="fa-solid fa-right-to-bracket me-2"></i> Đăng nhập vào hệ thống
+          </button>
+        </form>
+
+        <div class="text-center my-3 position-relative">
+          <hr class="text-muted">
+          <span class="position-absolute top-50 start-50 translate-middle bg-white px-3 small text-muted">HOẶC CHỌN VAI TRÒ DEMO</span>
         </div>
 
-        <!-- User Selector -->
-        <div class="d-flex align-items-center gap-2 bg-white bg-opacity-10 px-3 py-1 rounded-pill">
-          <i class="fa-solid fa-user-graduate text-info"></i>
-          <span class="text-white small fw-medium d-none d-sm-inline">Độc giả:</span>
-          <select class="form-select form-select-sm border-0 bg-white fw-medium shadow-none" id="currentUserSelect" style="min-width: 170px;">
-            <option value="">Đang tải độc giả...</option>
-          </select>
-        </div>
+        <!-- Quick Demo Login Buttons for Both Roles -->
+        <div class="d-flex flex-column gap-2">
+          <!-- Button 1: Thủ thư -->
+          <div class="quick-login-btn" onclick="quickLogin('thuthu', '123')">
+            <div>
+              <div class="d-flex align-items-center gap-2 mb-1">
+                <i class="fa-solid fa-user-shield text-warning fs-5"></i>
+                <b class="text-dark">Đăng nhập vai trò THỦ THƯ</b>
+                <span class="role-badge-pill role-badge-librarian">Librarian</span>
+              </div>
+              <div class="text-muted small" style="font-size: 0.78rem;">
+                Tài khoản: <code>thuthu</code> (Pass: <code>123</code>) • Toàn quyền giao/trả sách, kiểm soát kho & mọi đơn
+              </div>
+            </div>
+            <i class="fa-solid fa-chevron-right text-muted"></i>
+          </div>
 
-        <!-- Config API URL Button -->
-        <button class="btn btn-sm btn-outline-light rounded-circle" title="Cấu hình API Endpoint" data-bs-toggle="modal" data-bs-target="#configModal">
-          <i class="fa-solid fa-gear"></i>
-        </button>
+          <!-- Button 2: Sinh viên -->
+          <div class="quick-login-btn" onclick="quickLogin('sv_an', '123')">
+            <div>
+              <div class="d-flex align-items-center gap-2 mb-1">
+                <i class="fa-solid fa-graduation-cap text-success fs-5"></i>
+                <b class="text-dark">Đăng nhập vai trò SINH VIÊN</b>
+                <span class="role-badge-pill role-badge-student">Student</span>
+              </div>
+              <div class="text-muted small" style="font-size: 0.78rem;">
+                Tài khoản: <code>sv_an</code> (Pass: <code>123</code>) • Tra cứu sách, gửi đơn đặt mượn, xem lịch sử cá nhân
+              </div>
+            </div>
+            <i class="fa-solid fa-chevron-right text-muted"></i>
+          </div>
+        </div>
       </div>
     </div>
-  </nav>
+  </div>
 
-  <!-- Main Container -->
-  <div class="container-fluid px-4 py-4">
-    
-    <!-- Architecture Banner -->
-    <div class="alert alert-light border shadow-sm rounded-4 p-3 mb-4 d-flex flex-wrap align-items-center justify-content-between gap-3">
-      <div class="d-flex align-items-center gap-3">
-        <div class="bg-primary text-white p-3 rounded-circle">
-          <i class="fa-solid fa-network-wired fa-lg"></i>
-        </div>
-        <div>
-          <h6 class="mb-1 fw-bold text-dark">Kiến trúc Luồng Xử Lý Bất Đồng Bộ</h6>
-          <p class="mb-0 text-muted small">
-            <b>Client (FE)</b> &rarr; <b>Library API (ASP.NET Core Minimal API)</b> &rarr; <b>RabbitMQ Broker</b> &rarr; <b>Reservation Worker Service</b> &rarr; <b>PostgreSQL DB</b>
-          </p>
-        </div>
-      </div>
-      <div class="d-flex align-items-center gap-2">
-        <span class="badge bg-success-subtle text-success border border-success px-3 py-2">
-          <i class="fa-solid fa-check-double me-1"></i> Idempotent Consumer
-        </span>
-        <span class="badge bg-warning-subtle text-warning border border-warning px-3 py-2">
-          <i class="fa-solid fa-rotate me-1"></i> Retry & DLQ
-        </span>
-        <button class="btn btn-sm btn-outline-primary" onclick="checkHealth()">
-          <i class="fa-solid fa-arrows-rotate me-1"></i> Làm mới trạng thái
-        </button>
-      </div>
-    </div>
+  <!-- ======================================================== -->
+  <!-- 2. GIAO DIỆN CHÍNH HỆ THỐNG (APP VIEW - SAU ĐĂNG NHẬP) -->
+  <!-- ======================================================== -->
+  <div id="appView" style="display: none;">
 
-    <!-- Navigation Tabs -->
-    <ul class="nav nav-pills nav-pills-custom mb-4 gap-2 border-bottom pb-3" id="pills-tab" role="tablist">
-      <li class="nav-item" role="presentation">
-        <button class="nav-link active" id="tab-books-link" data-bs-toggle="pill" data-bs-target="#tab-books" type="button" role="tab">
-          <i class="fa-solid fa-book"></i> Tra Cứu & Đặt Mượn Sách
-        </button>
-      </li>
-      <li class="nav-item" role="presentation">
-        <button class="nav-link" id="tab-reservations-link" data-bs-toggle="pill" data-bs-target="#tab-reservations" type="button" role="tab" onclick="loadAllReservations()">
-          <i class="fa-solid fa-list-check"></i> Hàng Đợi Đặt Mượn (RabbitMQ)
-          <span class="badge bg-danger rounded-pill ms-1" id="badgePendingCount" style="display:none;">0</span>
-        </button>
-      </li>
-      <li class="nav-item" role="presentation">
-        <button class="nav-link" id="tab-librarian-link" data-bs-toggle="pill" data-bs-target="#tab-librarian" type="button" role="tab" onclick="loadLibrarianTasks()">
-          <i class="fa-solid fa-user-tie"></i> Nghiệp Vụ Thủ Thư (Giao/Trả)
-        </button>
-      </li>
-      <li class="nav-item" role="presentation">
-        <button class="nav-link" id="tab-userhistory-link" data-bs-toggle="pill" data-bs-target="#tab-userhistory" type="button" role="tab" onclick="loadUserReservations()">
-          <i class="fa-solid fa-clock-rotate-left"></i> Lịch Sử Độc Giả
-        </button>
-      </li>
-      <li class="nav-item" role="presentation">
-        <button class="nav-link text-danger" id="tab-stresstest-link" data-bs-toggle="pill" data-bs-target="#tab-stresstest" type="button" role="tab">
-          <i class="fa-solid fa-bolt"></i> Demo Tranh Chấp Sách (Concurrency)
-        </button>
-      </li>
-    </ul>
+    <!-- Top Navigation Bar -->
+    <nav class="navbar navbar-expand-lg navbar-dark navbar-custom sticky-top py-2">
+      <div class="container-fluid px-4">
+        <a class="navbar-brand d-flex align-items-center gap-2 fw-bold text-white fs-5" href="#">
+          <i class="fa-solid fa-book-bookmark text-warning"></i>
+          <span>HỆ THỐNG THƯ VIỆN PHÂN TÁN</span>
+          <span class="badge bg-warning text-dark ms-2 fw-semibold">Đề tài 20</span>
+        </a>
 
-    <!-- Tab Contents -->
-    <div class="tab-content" id="pills-tabContent">
-
-      <!-- ================= TAB 1: BOOKS CATALOG ================= -->
-      <div class="tab-pane fade show active" id="tab-books" role="tabpanel">
-        <!-- Search and Filter Bar -->
-        <div class="card-custom p-3 mb-4">
-          <div class="row g-3 align-items-center">
-            <div class="col-md-5">
-              <div class="input-group">
-                <span class="input-group-text bg-white border-end-0 text-muted">
-                  <i class="fa-solid fa-magnifying-glass"></i>
-                </span>
-                <input type="text" class="form-control border-start-0 ps-0" id="bookSearchInput" placeholder="Tìm theo tên sách, tác giả, ISBN..." onkeyup="filterBooks()">
-              </div>
+        <!-- Right Side: Status + Logged In User Profile -->
+        <div class="d-flex align-items-center gap-3 ms-auto">
+          <!-- Health Status Pills -->
+          <div class="d-none d-lg-flex align-items-center gap-2">
+            <div class="system-badge bg-dark text-white border border-secondary" id="badge-api">
+              <span class="status-dot offline" id="dot-api"></span>
+              <span>API: <b id="text-api">Checking...</b></span>
             </div>
-            <div class="col-md-4">
-              <select class="form-select" id="bookCategorySelect" onchange="filterBooks()">
-                <option value="">Tất cả thể loại</option>
-              </select>
+            <div class="system-badge bg-dark text-white border border-secondary" id="badge-db">
+              <span class="status-dot offline" id="dot-db"></span>
+              <span>Database: <b id="text-db">Checking...</b></span>
             </div>
-            <div class="col-md-3 text-md-end">
-              <button class="btn btn-outline-secondary w-100" onclick="loadBooks()">
-                <i class="fa-solid fa-rotate me-1"></i> Tải lại danh sách
-              </button>
-            </div>
-          </div>
-        </div>
-
-        <!-- Books Grid -->
-        <div class="row g-4" id="booksGrid">
-          <div class="col-12 text-center py-5">
-            <div class="spinner-border text-primary" role="status"></div>
-            <p class="mt-2 text-muted">Đang tải danh sách tài liệu thư viện...</p>
-          </div>
-        </div>
-      </div>
-
-      <!-- ================= TAB 2: LIVE RESERVATIONS QUEUE ================= -->
-      <div class="tab-pane fade" id="tab-reservations" role="tabpanel">
-        <div class="card-custom p-4 mb-4">
-          <div class="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-3">
-            <div>
-              <h5 class="fw-bold mb-1"><i class="fa-solid fa-bars-progress text-primary me-2"></i>Theo Dõi Trạng Thái Yêu Cầu Đặt Mượn</h5>
-              <p class="text-muted small mb-0">Hệ thống nhận đơn (Pending) &rarr; Đẩy vào RabbitMQ &rarr; Worker xử lý &rarr; Cập nhật (Reserved / Rejected)</p>
-            </div>
-            <div class="d-flex align-items-center gap-3">
-              <div class="form-check form-switch">
-                <input class="form-check-input" type="checkbox" id="autoRefreshSwitch" checked onchange="toggleAutoRefresh()">
-                <label class="form-check-label small fw-medium" for="autoRefreshSwitch">Tự động cập nhật (3s)</label>
-              </div>
-              <button class="btn btn-sm btn-primary" onclick="loadAllReservations()">
-                <i class="fa-solid fa-arrows-rotate me-1"></i> Làm mới
-              </button>
+            <div class="system-badge bg-dark text-white border border-secondary" id="badge-rabbit">
+              <span class="status-dot offline" id="dot-rabbit"></span>
+              <span>RabbitMQ: <b id="text-rabbit">Checking...</b></span>
             </div>
           </div>
 
-          <!-- Table of Reservations -->
-          <div class="table-responsive">
-            <table class="table table-hover align-middle">
-              <thead class="table-light">
-                <tr>
-                  <th scope="col" style="width: 80px;">Mã đơn</th>
-                  <th scope="col">Độc giả</th>
-                  <th scope="col">Tên sách</th>
-                  <th scope="col">Bản sao (Barcode)</th>
-                  <th scope="col">Trạng thái</th>
-                  <th scope="col">Ghi chú từ Worker</th>
-                  <th scope="col">Thời gian</th>
-                  <th scope="col" class="text-center">Thao tác</th>
-                </tr>
-              </thead>
-              <tbody id="reservationsTableBody">
-                <tr>
-                  <td colspan="8" class="text-center py-4 text-muted">Đang tải danh sách đặt mượn...</td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-        </div>
-      </div>
-
-      <!-- ================= TAB 3: LIBRARIAN OPERATIONS ================= -->
-      <div class="tab-pane fade" id="tab-librarian" role="tabpanel">
-        <div class="row g-4">
-          <!-- Column 1: Awaiting Pickup (Reserved -> Borrowed) -->
-          <div class="col-lg-6">
-            <div class="card-custom p-4 h-100">
-              <div class="d-flex align-items-center justify-content-between mb-3 border-bottom pb-2">
-                <h5 class="fw-bold text-success mb-0">
-                  <i class="fa-solid fa-hand-holding-hand me-2"></i>Chờ Độc Giả Nhận Sách (Reserved)
-                </h5>
-                <span class="badge bg-success" id="countReserved">0</span>
-              </div>
-              <p class="text-muted small">Đơn đã được Worker giữ sách thành công. Khi độc giả đến quầy xuất trình mã sinh viên, bấm "Xác nhận giao sách".</p>
-              
-              <div class="list-group list-group-flush" id="reservedList">
-                <div class="text-center py-4 text-muted">Không có đơn nào đang chờ nhận sách.</div>
+          <!-- Logged In User Profile Card -->
+          <div class="user-profile-badge text-white">
+            <div class="bg-white text-dark rounded-circle d-flex align-items-center justify-content-center" style="width: 32px; height: 32px;">
+              <i class="fa-solid fa-user" id="userAvatarIcon"></i>
+            </div>
+            <div class="d-flex flex-column text-start">
+              <div class="fw-bold small lh-1" id="navUserName">Họ tên</div>
+              <div class="d-flex align-items-center gap-1 mt-1">
+                <span id="navUserRoleBadge"></span>
+                <span class="small text-white-50" id="navUserCode" style="font-size: 0.72rem;"></span>
               </div>
             </div>
           </div>
 
-          <!-- Column 2: Currently Borrowed (Borrowed -> Returned) -->
-          <div class="col-lg-6">
-            <div class="card-custom p-4 h-100">
-              <div class="d-flex align-items-center justify-content-between mb-3 border-bottom pb-2">
-                <h5 class="fw-bold text-primary mb-0">
-                  <i class="fa-solid fa-arrow-right-to-bracket me-2"></i>Đang Mượn (Chờ Trả Sách)
-                </h5>
-                <span class="badge bg-primary" id="countBorrowed">0</span>
-              </div>
-              <p class="text-muted small">Sách đang được độc giả giữ. Khi độc giả mang trả, bấm "Xác nhận trả sách" để hoàn lại số bản khả dụng vào kho.</p>
+          <!-- Logout Button -->
+          <button class="btn btn-sm btn-outline-danger rounded-pill px-3 fw-medium" onclick="handleLogout()" title="Đăng xuất khỏi hệ thống">
+            <i class="fa-solid fa-arrow-right-from-bracket me-1"></i> Đăng xuất
+          </button>
 
-              <div class="list-group list-group-flush" id="borrowedList">
-                <div class="text-center py-4 text-muted">Không có cuốn sách nào đang được mượn.</div>
-              </div>
-            </div>
+          <!-- Config API URL Button -->
+          <button class="btn btn-sm btn-outline-light rounded-circle" title="Cấu hình API Endpoint" data-bs-toggle="modal" data-bs-target="#configModal">
+            <i class="fa-solid fa-gear"></i>
+          </button>
+        </div>
+      </div>
+    </nav>
+
+    <!-- Main Container -->
+    <div class="container-fluid px-4 py-4">
+      
+      <!-- Role Notice Banner -->
+      <div class="alert shadow-sm rounded-4 p-3 mb-4 d-flex flex-wrap align-items-center justify-content-between gap-3" id="roleNoticeBanner">
+        <div class="d-flex align-items-center gap-3">
+          <div class="p-3 rounded-circle text-white" id="roleNoticeIcon">
+            <i class="fa-solid fa-shield-halved fa-lg"></i>
           </div>
+          <div>
+            <h6 class="mb-1 fw-bold text-dark" id="roleNoticeTitle">Quyền hạn tài khoản hiện tại</h6>
+            <p class="mb-0 text-muted small" id="roleNoticeDesc">Mô tả chức vụ và các quyền hạn được phép thực hiện...</p>
+          </div>
+        </div>
+        <div class="d-flex align-items-center gap-2">
+          <span class="badge bg-success-subtle text-success border border-success px-3 py-2">
+            <i class="fa-solid fa-check-double me-1"></i> Idempotent Consumer
+          </span>
+          <span class="badge bg-warning-subtle text-warning border border-warning px-3 py-2">
+            <i class="fa-solid fa-rotate me-1"></i> Retry & DLQ
+          </span>
+          <button class="btn btn-sm btn-outline-primary" onclick="checkHealth()">
+            <i class="fa-solid fa-arrows-rotate me-1"></i> Làm mới trạng thái
+          </button>
         </div>
       </div>
 
-      <!-- ================= TAB 4: USER HISTORY ================= -->
-      <div class="tab-pane fade" id="tab-userhistory" role="tabpanel">
-        <div class="card-custom p-4">
-          <div class="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-4">
-            <div>
-              <h5 class="fw-bold mb-1"><i class="fa-solid fa-address-card text-info me-2"></i>Lịch Sử Mượn Sách Theo Độc Giả</h5>
-              <p class="text-muted small mb-0">Tra cứu danh sách sách đang mượn hoặc đã đặt của độc giả được chọn (Endpoint: <code>GET /users/{userId}/reservations</code>)</p>
-            </div>
-            <div class="d-flex align-items-center gap-2">
-              <button class="btn btn-sm btn-outline-primary" onclick="loadUserReservations()">
-                <i class="fa-solid fa-arrows-rotate me-1"></i> Tải lại
-              </button>
-            </div>
-          </div>
+      <!-- Navigation Tabs -->
+      <ul class="nav nav-pills nav-pills-custom mb-4 gap-2 border-bottom pb-3" id="pills-tab" role="tablist">
+        <li class="nav-item" role="presentation">
+          <button class="nav-link active" id="tab-books-link" data-bs-toggle="pill" data-bs-target="#tab-books" type="button" role="tab">
+            <i class="fa-solid fa-book"></i> Tra Cứu & Đặt Mượn Sách
+          </button>
+        </li>
+        <li class="nav-item" role="presentation">
+          <button class="nav-link" id="tab-reservations-link" data-bs-toggle="pill" data-bs-target="#tab-reservations" type="button" role="tab" onclick="loadAllReservations()">
+            <i class="fa-solid fa-list-check"></i> Hàng Đợi Đặt Mượn (RabbitMQ)
+            <span class="badge bg-danger rounded-pill ms-1" id="badgePendingCount" style="display:none;">0</span>
+          </button>
+        </li>
+        <!-- Tab 3: CHỈ HIỂN THỊ KHI ĐĂNG NHẬP THỦ THƯ -->
+        <li class="nav-item" role="presentation" id="tab-librarian-item">
+          <button class="nav-link" id="tab-librarian-link" data-bs-toggle="pill" data-bs-target="#tab-librarian" type="button" role="tab" onclick="loadLibrarianTasks()">
+            <i class="fa-solid fa-user-tie"></i> Nghiệp Vụ Thủ Thư (Giao/Trả)
+            <span class="badge bg-warning text-dark rounded-pill ms-1" id="badgeLibrarianRole">Chỉ Thủ thư</span>
+          </button>
+        </li>
+        <li class="nav-item" role="presentation">
+          <button class="nav-link" id="tab-userhistory-link" data-bs-toggle="pill" data-bs-target="#tab-userhistory" type="button" role="tab" onclick="loadUserReservations()">
+            <i class="fa-solid fa-clock-rotate-left"></i> Lịch Sử Độc Giả
+          </button>
+        </li>
+        <li class="nav-item" role="presentation">
+          <button class="nav-link text-danger" id="tab-stresstest-link" data-bs-toggle="pill" data-bs-target="#tab-stresstest" type="button" role="tab">
+            <i class="fa-solid fa-bolt"></i> Demo Tranh Chấp Sách (Concurrency)
+          </button>
+        </li>
+      </ul>
 
-          <div class="table-responsive">
-            <table class="table table-hover align-middle">
-              <thead class="table-light">
-                <tr>
-                  <th>Mã đơn</th>
-                  <th>Tên sách</th>
-                  <th>Mã bản sao</th>
-                  <th>Trạng thái</th>
-                  <th>Ghi chú</th>
-                  <th>Ngày đặt</th>
-                </tr>
-              </thead>
-              <tbody id="userReservationsTableBody">
-                <tr>
-                  <td colspan="6" class="text-center py-4 text-muted">Vui lòng chọn độc giả để xem lịch sử.</td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-        </div>
-      </div>
+      <!-- Tab Contents -->
+      <div class="tab-content" id="pills-tabContent">
 
-      <!-- ================= TAB 5: RACE CONDITION DEMO ================= -->
-      <div class="tab-pane fade" id="tab-stresstest" role="tabpanel">
-        <div class="card-custom p-4">
-          <div class="stress-test-box p-4 mb-4">
-            <h4 class="fw-bold text-dark mb-2">
-              <i class="fa-solid fa-vial-circle-check text-warning me-2"></i>Kịch Bản Mô Phỏng Tranh Chấp Tài Nguyên Phân Tán
-            </h4>
-            <p class="text-secondary mb-3">
-              Mục tiêu của bài tập phân tán: Khi nhiều người dùng gửi yêu cầu đặt mượn cùng lúc cho một cuốn sách chỉ còn <b>1 bản khả dụng duy nhất</b>.
-              Hệ thống dùng <b>RabbitMQ Queue</b> và <b>Database Transaction Isolation</b> để đảm bảo:
-            </p>
-            <ul class="text-secondary small mb-3">
-              <li>Mọi request đều được tiếp nhận ngay lập tức với trạng thái <code>Pending</code>.</li>
-              <li>Worker xử lý tuần tự theo hàng đợi: <b>1 người được duyệt (Reserved)</b> và người còn lại <b>bị từ chối (Rejected)</b>.</li>
-              <li>Tuyệt đối <b>KHÔNG</b> bị lỗi Oversell (không bị mượn âm sách).</li>
-            </ul>
-
-            <div class="row align-items-center g-3">
-              <div class="col-md-6">
-                <label class="form-label fw-semibold">Chọn sách chỉ còn 1 bản:</label>
-                <select class="form-select fw-medium" id="stressBookSelect">
-                  <option value="">Đang tải danh sách sách...</option>
+        <!-- ================= TAB 1: BOOKS CATALOG ================= -->
+        <div class="tab-pane fade show active" id="tab-books" role="tabpanel">
+          <!-- Search and Filter Bar -->
+          <div class="card-custom p-3 mb-4">
+            <div class="row g-3 align-items-center">
+              <div class="col-md-5">
+                <div class="input-group">
+                  <span class="input-group-text bg-white border-end-0 text-muted">
+                    <i class="fa-solid fa-magnifying-glass"></i>
+                  </span>
+                  <input type="text" class="form-control border-start-0 ps-0" id="bookSearchInput" placeholder="Tìm theo tên sách, tác giả, ISBN..." onkeyup="filterBooks()">
+                </div>
+              </div>
+              <div class="col-md-4">
+                <select class="form-select" id="bookCategorySelect" onchange="filterBooks()">
+                  <option value="">Tất cả thể loại</option>
                 </select>
               </div>
-              <div class="col-md-6 pt-md-4">
-                <button class="btn btn-danger btn-lg w-100 fw-bold shadow" onclick="triggerStressTest()" id="btnStressRun">
-                  <i class="fa-solid fa-bolt-lightning me-2"></i> Bấm để gửi 2 Request Song Song Cùng Lúc!
+              <div class="col-md-3 text-md-end">
+                <button class="btn btn-outline-secondary w-100" onclick="loadBooks()">
+                  <i class="fa-solid fa-rotate me-1"></i> Tải lại danh sách
                 </button>
               </div>
             </div>
           </div>
 
-          <!-- Live Stress Test Results -->
-          <h6 class="fw-bold text-dark mb-3"><i class="fa-solid fa-terminal me-2"></i>Kết Quả Xử Lý Thời Gian Thực</h6>
-          <div class="row g-3" id="stressResultsContainer">
-            <div class="col-12 text-center py-4 text-muted">
-              Nhấn nút chạy mô phỏng phía trên để quan sát kết quả phân tán.
+          <!-- Books Grid -->
+          <div class="row g-4" id="booksGrid">
+            <div class="col-12 text-center py-5">
+              <div class="spinner-border text-primary" role="status"></div>
+              <p class="mt-2 text-muted">Đang tải danh sách tài liệu thư viện...</p>
             </div>
           </div>
         </div>
-      </div>
 
+        <!-- ================= TAB 2: LIVE RESERVATIONS QUEUE ================= -->
+        <div class="tab-pane fade" id="tab-reservations" role="tabpanel">
+          <div class="card-custom p-4 mb-4">
+            <div class="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-3">
+              <div>
+                <h5 class="fw-bold mb-1"><i class="fa-solid fa-bars-progress text-primary me-2"></i>Theo Dõi Trạng Thái Yêu Cầu Đặt Mượn</h5>
+                <p class="text-muted small mb-0">Client gửi đơn (Pending) &rarr; Đẩy vào RabbitMQ &rarr; Worker xử lý &rarr; Cập nhật (Reserved / Rejected)</p>
+              </div>
+              <div class="d-flex align-items-center gap-3">
+                <div class="form-check form-switch">
+                  <input class="form-check-input" type="checkbox" id="autoRefreshSwitch" checked onchange="toggleAutoRefresh()">
+                  <label class="form-check-label small fw-medium" for="autoRefreshSwitch">Tự động cập nhật (3s)</label>
+                </div>
+                <button class="btn btn-sm btn-primary" onclick="loadAllReservations()">
+                  <i class="fa-solid fa-arrows-rotate me-1"></i> Làm mới
+                </button>
+              </div>
+            </div>
+
+            <!-- Table of Reservations -->
+            <div class="table-responsive">
+              <table class="table table-hover align-middle">
+                <thead class="table-light">
+                  <tr>
+                    <th scope="col" style="width: 80px;">Mã đơn</th>
+                    <th scope="col">Độc giả</th>
+                    <th scope="col">Tên sách</th>
+                    <th scope="col">Bản sao (Barcode)</th>
+                    <th scope="col">Trạng thái</th>
+                    <th scope="col">Ghi chú từ Worker</th>
+                    <th scope="col">Thời gian</th>
+                    <th scope="col" class="text-center" id="thActionHeader">Thao tác</th>
+                  </tr>
+                </thead>
+                <tbody id="reservationsTableBody">
+                  <tr>
+                    <td colspan="8" class="text-center py-4 text-muted">Đang tải danh sách đặt mượn...</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- ================= TAB 3: LIBRARIAN OPERATIONS ================= -->
+        <div class="tab-pane fade" id="tab-librarian" role="tabpanel">
+          <div class="row g-4">
+            <!-- Column 1: Awaiting Pickup (Reserved -> Borrowed) -->
+            <div class="col-lg-6">
+              <div class="card-custom p-4 h-100">
+                <div class="d-flex align-items-center justify-content-between mb-3 border-bottom pb-2">
+                  <h5 class="fw-bold text-success mb-0">
+                    <i class="fa-solid fa-hand-holding-hand me-2"></i>Chờ Độc Giả Nhận Sách (Reserved)
+                  </h5>
+                  <span class="badge bg-success" id="countReserved">0</span>
+                </div>
+                <p class="text-muted small">Đơn đã được Worker giữ sách thành công. Khi độc giả đến quầy xuất trình mã sinh viên, bấm "Xác nhận giao sách".</p>
+                
+                <div class="list-group list-group-flush" id="reservedList">
+                  <div class="text-center py-4 text-muted">Không có đơn nào đang chờ nhận sách.</div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Column 2: Currently Borrowed (Borrowed -> Returned) -->
+            <div class="col-lg-6">
+              <div class="card-custom p-4 h-100">
+                <div class="d-flex align-items-center justify-content-between mb-3 border-bottom pb-2">
+                  <h5 class="fw-bold text-primary mb-0">
+                    <i class="fa-solid fa-arrow-right-to-bracket me-2"></i>Đang Mượn (Chờ Trả Sách)
+                  </h5>
+                  <span class="badge bg-primary" id="countBorrowed">0</span>
+                </div>
+                <p class="text-muted small">Sách đang được độc giả giữ. Khi độc giả mang trả, bấm "Xác nhận trả sách" để hoàn lại số bản khả dụng vào kho.</p>
+
+                <div class="list-group list-group-flush" id="borrowedList">
+                  <div class="text-center py-4 text-muted">Không có cuốn sách nào đang được mượn.</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ================= TAB 4: USER HISTORY ================= -->
+        <div class="tab-pane fade" id="tab-userhistory" role="tabpanel">
+          <div class="card-custom p-4">
+            <div class="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-4">
+              <div>
+                <h5 class="fw-bold mb-1"><i class="fa-solid fa-address-card text-info me-2"></i>Lịch Sử Mượn Sách Theo Độc Giả</h5>
+                <p class="text-muted small mb-0" id="userHistorySubtitle">Tra cứu danh sách sách đang mượn hoặc đã đặt của độc giả (Endpoint: <code>GET /users/{userId}/reservations</code>)</p>
+              </div>
+              <div class="d-flex align-items-center gap-2">
+                <div id="librarianUserSelectContainer" style="display: none;">
+                  <select class="form-select form-select-sm" id="userHistoryFilterSelect" onchange="loadUserReservations()">
+                    <option value="">Chọn độc giả...</option>
+                  </select>
+                </div>
+                <button class="btn btn-sm btn-outline-primary" onclick="loadUserReservations()">
+                  <i class="fa-solid fa-arrows-rotate me-1"></i> Tải lại
+                </button>
+              </div>
+            </div>
+
+            <div class="table-responsive">
+              <table class="table table-hover align-middle">
+                <thead class="table-light">
+                  <tr>
+                    <th>Mã đơn</th>
+                    <th>Tên sách</th>
+                    <th>Mã bản sao</th>
+                    <th>Trạng thái</th>
+                    <th>Ghi chú</th>
+                    <th>Ngày đặt</th>
+                  </tr>
+                </thead>
+                <tbody id="userReservationsTableBody">
+                  <tr>
+                    <td colspan="6" class="text-center py-4 text-muted">Đang tải lịch sử...</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- ================= TAB 5: RACE CONDITION DEMO ================= -->
+        <div class="tab-pane fade" id="tab-stresstest" role="tabpanel">
+          <div class="card-custom p-4">
+            <div class="stress-test-box p-4 mb-4">
+              <h4 class="fw-bold text-dark mb-2">
+                <i class="fa-solid fa-vial-circle-check text-warning me-2"></i>Kịch Bản Mô Phỏng Tranh Chấp Tài Nguyên Phân Tán
+              </h4>
+              <p class="text-secondary mb-3">
+                Mục tiêu của bài tập phân tán: Khi nhiều người dùng gửi yêu cầu đặt mượn cùng lúc cho một cuốn sách chỉ còn <b>1 bản khả dụng duy nhất</b>.
+                Hệ thống dùng <b>RabbitMQ Queue</b> và <b>Database Transaction Isolation</b> để đảm bảo:
+              </p>
+              <ul class="text-secondary small mb-3">
+                <li>Mọi request đều được tiếp nhận ngay lập tức với trạng thái <code>Pending</code>.</li>
+                <li>Worker xử lý tuần tự theo hàng đợi: <b>1 người được duyệt (Reserved)</b> và người còn lại <b>bị từ chối (Rejected)</b>.</li>
+                <li>Tuyệt đối <b>KHÔNG</b> bị lỗi Oversell (không bị mượn âm sách).</li>
+              </ul>
+
+              <div class="row align-items-center g-3">
+                <div class="col-md-6">
+                  <label class="form-label fw-semibold">Chọn sách chỉ còn 1 bản:</label>
+                  <select class="form-select fw-medium" id="stressBookSelect">
+                    <option value="">Đang tải danh sách sách...</option>
+                  </select>
+                </div>
+                <div class="col-md-6 pt-md-4">
+                  <button class="btn btn-danger btn-lg w-100 fw-bold shadow" onclick="triggerStressTest()" id="btnStressRun">
+                    <i class="fa-solid fa-bolt-lightning me-2"></i> Bấm để gửi 2 Request Song Song Cùng Lúc!
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Live Stress Test Results -->
+            <h6 class="fw-bold text-dark mb-3"><i class="fa-solid fa-terminal me-2"></i>Kết Quả Xử Lý Thời Gian Thực</h6>
+            <div class="row g-3" id="stressResultsContainer">
+              <div class="col-12 text-center py-4 text-muted">
+                Nhấn nút chạy mô phỏng phía trên để quan sát kết quả phân tán.
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
     </div>
   </div>
 
@@ -411,4 +509,3 @@
   <script src="app.js"></script>
 </body>
 </html>
-
