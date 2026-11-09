@@ -687,3 +687,4 @@ async function triggerStressTest() {
     container.innerHTML = `<div class="col-12 text-danger text-center py-3">Lỗi khi thực hiện stress test: ${err.message}</div>`;
   }
 }
+

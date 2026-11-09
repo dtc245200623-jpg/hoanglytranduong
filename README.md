@@ -185,3 +185,4 @@ Vì Frontend là Web SPA thuần (HTML/CSS/JS) độc lập và API đã cấu h
    - Bấm nút **"Bấm để gửi 2 Request Song Song Cùng Lúc!"**.
    - Cả 2 sinh viên gửi yêu cầu đồng thời.
    - Kết quả: **Chính xác 1 sinh viên nhận trạng thái `Reserved`** và **1 sinh viên nhận trạng thái `Rejected`** (với lý do: "Hiện tại tất cả các bản sao đã được giữ trước"). Không bao giờ xảy ra lỗi âm số lượng sách.
+
