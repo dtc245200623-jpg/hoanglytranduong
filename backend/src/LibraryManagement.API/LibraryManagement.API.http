@@ -1,6 +1,76 @@
-@LibraryManagement.API_HostAddress = http://localhost:5184
+@HostAddress = http://localhost:5000
 
-GET {{LibraryManagement.API_HostAddress}}/weatherforecast/
+### 1. Kiểm tra Health Check hệ thống (API, Database, RabbitMQ)
+GET {{HostAddress}}/health
 Accept: application/json
 
-###
+### 2. Tra cứu toàn bộ danh sách sách & số bản khả dụng
+GET {{HostAddress}}/books
+Accept: application/json
+
+### 3. Tìm kiếm sách theo từ khóa (Ví dụ: "Phân tán")
+GET {{HostAddress}}/books?search=Phân+tán
+Accept: application/json
+
+### 4. Lọc sách theo thể loại
+GET {{HostAddress}}/books?category=Message+Broker
+Accept: application/json
+
+### 5. Chi tiết sách theo ID (kèm danh sách các bản sao Barcode)
+GET {{HostAddress}}/books/1
+Accept: application/json
+
+### 6. Lấy danh sách độc giả (Users)
+GET {{HostAddress}}/users
+Accept: application/json
+
+### 7. Gửi yêu cầu đặt mượn sách (Đẩy vào RabbitMQ xử lý bất đồng bộ)
+# Yêu cầu này sẽ trả về trạng thái Pending ngay lập tức
+POST {{HostAddress}}/reservations
+Content-Type: application/json
+
+{
+  "userId": 1,
+  "bookId": 1
+}
+
+### 8. Tra cứu trạng thái yêu cầu đặt mượn theo ID
+# Quan sát trạng thái chuyển từ Pending -> Reserved sau khi Worker xử lý
+GET {{HostAddress}}/reservations/1
+Accept: application/json
+
+### 9. Tra cứu danh sách các đơn đặt/mượn của một người dùng
+GET {{HostAddress}}/users/1/reservations
+Accept: application/json
+
+### 10. Lấy toàn bộ danh sách đơn đặt mượn trong hệ thống
+GET {{HostAddress}}/reservations
+Accept: application/json
+
+### 11. [Thủ thư] Xác nhận giao sách cho độc giả (Reserved -> Borrowed)
+POST {{HostAddress}}/reservations/1/borrow
+Accept: application/json
+
+### 12. [Thủ thư] Xác nhận độc giả trả sách (Borrowed -> Returned)
+# Bản sao sẽ được hoàn lại kho và AvailableCopies tăng lên 1
+POST {{HostAddress}}/reservations/1/return
+Accept: application/json
+
+### 13. [Kịch bản Tranh chấp] Gửi yêu cầu đặt mượn cuốn sách chỉ có 1 bản (BookId = 6)
+POST {{HostAddress}}/reservations
+Content-Type: application/json
+
+{
+  "userId": 2,
+  "bookId": 6
+}
+
+### 14. [Kịch bản Tranh chấp - Tiếp theo] Người thứ 2 cố tình đặt cùng cuốn sách (BookId = 6)
+# Worker sẽ tự động chuyển trạng thái đơn này thành Rejected do hết bản khả dụng
+POST {{HostAddress}}/reservations
+Content-Type: application/json
+
+{
+  "userId": 3,
+  "bookId": 6
+}
